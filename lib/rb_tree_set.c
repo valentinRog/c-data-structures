@@ -1,26 +1,24 @@
 #include "vds.h"
 #include <stdio.h>
 
-vds_rb_tree vds_rb_tree_create( int ( *cmp )( void *, void * ),
-                                void ( *del_key )( void * ),
-                                void ( *del_value )( void * ) ) {
-    vds_rb_tree tree = { 0 };
-    tree.nil         = calloc( sizeof( vds_rb_tree_node ), 1 );
-    tree.root        = tree.nil;
-    tree.cmp         = cmp;
-    tree.del_key     = del_key;
-    tree.del_value   = del_value;
+vds_rb_tree_set vds_rb_tree_set_create( int ( *cmp )( void *, void * ),
+                                        void ( *del_key )( void * )) {
+    vds_rb_tree_set tree = { 0 };
+    tree.nil             = calloc( sizeof( vds_rb_tree_set_node ), 1 );
+    tree.root            = tree.nil;
+    tree.cmp             = cmp;
+    tree.del_key         = del_key;
     return tree;
 }
 
-void vds_rb_tree_destroy( vds_rb_tree *tree ) {
-    vds_rb_tree_clear( tree );
+void vds_rb_tree_set_destroy( vds_rb_tree_set *tree ) {
+    vds_rb_tree_set_clear( tree );
     free( tree->nil );
 }
 
-static void rotate_left( vds_rb_tree *tree, vds_rb_tree_node *x ) {
-    vds_rb_tree_node *y = x->right;
-    x->right            = y->left;
+static void rotate_left( vds_rb_tree_set *tree, vds_rb_tree_set_node *x ) {
+    vds_rb_tree_set_node *y = x->right;
+    x->right                = y->left;
     if ( y->left != tree->nil ) { y->left->p = x; }
     y->p = x->p;
     if ( !x->p ) {
@@ -34,9 +32,9 @@ static void rotate_left( vds_rb_tree *tree, vds_rb_tree_node *x ) {
     x->p    = y;
 }
 
-static void rotate_right( vds_rb_tree *tree, vds_rb_tree_node *x ) {
-    vds_rb_tree_node *y = x->left;
-    x->left             = y->right;
+static void rotate_right( vds_rb_tree_set *tree, vds_rb_tree_set_node *x ) {
+    vds_rb_tree_set_node *y = x->left;
+    x->left                 = y->right;
     if ( y->right != tree->nil ) { y->right->p = x; }
     y->p = x->p;
     if ( !x->p ) {
@@ -50,8 +48,8 @@ static void rotate_right( vds_rb_tree *tree, vds_rb_tree_node *x ) {
     x->p     = y;
 }
 
-void vds_rb_tree_insert( vds_rb_tree *tree, void *k, void *v ) {
-    vds_rb_tree_node *p = tree->root;
+void vds_rb_tree_set_insert( vds_rb_tree_set *tree, void *k ) {
+    vds_rb_tree_set_node *p = tree->root;
     while ( p != tree->nil ) {
         if ( tree->cmp( k, p->key ) < 0 ) {
             if ( p->left == tree->nil ) { break; }
@@ -64,13 +62,12 @@ void vds_rb_tree_insert( vds_rb_tree *tree, void *k, void *v ) {
         }
     }
     if ( p == tree->nil ) { p = NULL; }
-    vds_rb_tree_node *node = malloc( sizeof( vds_rb_tree_node ) );
-    node->key              = k;
-    node->value            = v;
-    node->p                = p;
-    node->left             = tree->nil;
-    node->right            = tree->nil;
-    node->red              = true;
+    vds_rb_tree_set_node *node = malloc( sizeof( vds_rb_tree_set_node ) );
+    node->key                  = k;
+    node->p                    = p;
+    node->left                 = tree->nil;
+    node->right                = tree->nil;
+    node->red                  = true;
     if ( !p ) {
         tree->root = node;
     } else if ( tree->cmp( k, p->key ) < 0 ) {
@@ -80,7 +77,7 @@ void vds_rb_tree_insert( vds_rb_tree *tree, void *k, void *v ) {
     }
     while ( node != tree->root && node->p->red ) {
         if ( node->p == node->p->p->left ) {
-            vds_rb_tree_node *y = node->p->p->right;
+            vds_rb_tree_set_node *y = node->p->p->right;
             if ( y->red ) {
                 node->p->red    = false;
                 y->red          = false;
@@ -96,7 +93,7 @@ void vds_rb_tree_insert( vds_rb_tree *tree, void *k, void *v ) {
                 rotate_right( tree, node->p->p );
             }
         } else {
-            vds_rb_tree_node *y = node->p->p->left;
+            vds_rb_tree_set_node *y = node->p->p->left;
             if ( y->red ) {
                 node->p->red    = false;
                 y->red          = false;
@@ -117,22 +114,23 @@ void vds_rb_tree_insert( vds_rb_tree *tree, void *k, void *v ) {
     tree->size++;
 }
 
-void *vds_rb_tree_search( vds_rb_tree *tree, void *k ) {
-    vds_rb_tree_node *p = tree->root;
+bool vds_rb_tree_set_search( vds_rb_tree_set *tree, void *k ) {
+    vds_rb_tree_set_node *p = tree->root;
     while ( p != tree->nil ) {
         if ( tree->cmp( k, p->key ) < 0 ) {
             p = p->left;
         } else if ( tree->cmp( k, p->key ) > 0 ) {
             p = p->right;
         } else {
-            return p->value;
+            return true;
         }
     }
-    return NULL;
+    return false;
 }
 
-static void
-transplant( vds_rb_tree *tree, vds_rb_tree_node *u, vds_rb_tree_node *v ) {
+static void transplant( vds_rb_tree_set      *tree,
+                        vds_rb_tree_set_node *u,
+                        vds_rb_tree_set_node *v ) {
     if ( !u->p ) {
         tree->root = v;
     } else if ( u == u->p->left ) {
@@ -143,14 +141,14 @@ transplant( vds_rb_tree *tree, vds_rb_tree_node *u, vds_rb_tree_node *v ) {
     v->p = u->p;
 }
 
-static vds_rb_tree_node *tree_minimum( vds_rb_tree *     tree,
-                                       vds_rb_tree_node *x ) {
+static vds_rb_tree_set_node *tree_minimum( vds_rb_tree_set      *tree,
+                                           vds_rb_tree_set_node *x ) {
     while ( x->left != tree->nil ) { x = x->left; }
     return x;
 }
 
-void vds_rb_tree_remove( vds_rb_tree *tree, void *k ) {
-    vds_rb_tree_node *z = tree->root;
+void vds_rb_tree_set_remove( vds_rb_tree_set *tree, void *k ) {
+    vds_rb_tree_set_node *z = tree->root;
     while ( z != tree->nil ) {
         if ( tree->cmp( k, z->key ) < 0 ) {
             z = z->left;
@@ -161,9 +159,9 @@ void vds_rb_tree_remove( vds_rb_tree *tree, void *k ) {
         }
     }
     if ( z == tree->nil ) { return; }
-    vds_rb_tree_node *y = z;
-    vds_rb_tree_node *x;
-    bool              y_original_color = y->red;
+    vds_rb_tree_set_node *y = z;
+    vds_rb_tree_set_node *x;
+    bool                  y_original_color = y->red;
     if ( z->left == tree->nil ) {
         x = z->right;
         transplant( tree, z, z->right );
@@ -189,7 +187,7 @@ void vds_rb_tree_remove( vds_rb_tree *tree, void *k ) {
     if ( !y_original_color ) {
         while ( x != tree->root && !x->red ) {
             if ( x == x->p->left ) {
-                vds_rb_tree_node *w = x->p->right;
+                vds_rb_tree_set_node *w = x->p->right;
                 if ( w->red ) {
                     w->red    = false;
                     x->p->red = true;
@@ -213,7 +211,7 @@ void vds_rb_tree_remove( vds_rb_tree *tree, void *k ) {
                     x = tree->root;
                 }
             } else {
-                vds_rb_tree_node *w = x->p->left;
+                vds_rb_tree_set_node *w = x->p->left;
                 if ( w->red ) {
                     w->red    = false;
                     x->p->red = true;
@@ -241,11 +239,10 @@ void vds_rb_tree_remove( vds_rb_tree *tree, void *k ) {
         x->red = false;
     }
     if ( tree->del_key ) { tree->del_key( z->key ); }
-    if ( tree->del_value ) { tree->del_value( z->value ); }
     free( z );
     tree->size--;
 }
 
-void vds_rb_tree_clear( vds_rb_tree *tree ) {
-    while ( tree->size ) { vds_rb_tree_remove( tree, tree->root->key ); }
+void vds_rb_tree_set_clear( vds_rb_tree_set *tree ) {
+    while ( tree->size ) { vds_rb_tree_set_remove( tree, tree->root->key ); }
 }

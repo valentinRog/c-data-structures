@@ -1,4 +1,4 @@
-NAME = libvds
+NAME = libvds.so
 
 SRC = $(wildcard lib/*.c)
 
@@ -6,16 +6,16 @@ OBJ = $(SRC:.c=.o)
 
 CFLAGS = -Wall -Wextra -Werror
 
+CC = gcc
+
 all: $(NAME)
 
 $(NAME): $(OBJ)
-	@ar rc $(NAME).a $(OBJ)
-	@ranlib $(NAME).a
-
+	$(CC) $(CFLAGS) -shared -o $@ $(OBJ)
 clean:
 	@$(RM) $(OBJ)
 
 fclean: clean
-	@$(RM) $(NAME).a
+	@$(RM) $(NAME)
 
 re: fclean all
